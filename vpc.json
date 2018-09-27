@@ -1,0 +1,269 @@
+{
+    "Outputs":{
+      "VPCID" : {
+        "Description" : "The ID of the VPC that I create within this template",
+        "Value" : {"Ref" : "AndysVPC"},
+        "Export" : {"Name" : "VPCID"}
+      },
+      "public1":{
+        "Description" : "ID of public1 subnet",
+        "Value" : {"Ref" : "public1"},
+        "Export" : {"Name" : {"Fn::Sub":"${AWS::StackName}-public1"}}
+      },
+      "public2":{
+        "Description" : "ID of public2 subnet",
+        "Value" : {"Ref" : "public2"},
+        "Export" : {"Name" : {"Fn::Sub":"${AWS::StackName}-public2"}}
+      },
+      "public3":{
+        "Description" : "ID of public3 subnet",
+        "Value" : {"Ref" : "public3"},
+        "Export" : {"Name" : {"Fn::Sub":"${AWS::StackName}-public3"}}
+      },
+      "private1":{
+        "Description" : "ID of private1 subnet",
+        "Value" : {"Ref" : "private1"},
+        "Export" : {"Name" : {"Fn::Sub":"${AWS::StackName}-private1"}}
+      },
+      "private2":{
+        "Description" : "ID of private2 subnet",
+        "Value" : {"Ref" : "private2"},
+        "Export" : {"Name" : {"Fn::Sub":"${AWS::StackName}-private2"}}
+      },
+      "private3":{
+        "Description" : "ID of private3 subnet",
+        "Value" : {"Ref" : "private3"},
+        "Export" : {"Name" : {"Fn::Sub":"${AWS::StackName}-private3"}}
+      }
+    },
+    "Resources" : {
+     "AndysVPC" : {
+         "Type" : "AWS::EC2::VPC",
+         "Properties" : {
+           "CidrBlock": "10.0.0.0/16",
+           "EnableDnsSupport": "true",
+           "EnableDnsHostnames": "true",
+           "InstanceTenancy": "default",
+           "Tags": [
+             {
+               "Key": "Name",
+               "Value": "AndysVPC"
+             }
+           ]
+         }
+      },
+      "AndysPublicRouteTable" :{
+        "Type" : "AWS::EC2::RouteTable",
+          "Properties" : {
+            "VpcId" : { "Ref" : "AndysVPC" },
+            "Tags" : [
+              {
+                "Key": "Name",
+                "Value" : "AndysPublicRouteTable"
+              }
+            ]
+          },
+        "DependsOn" : [ "AndysVPC" ]
+  
+  
+      },
+      "PublicRoute" : {
+           "Type" : "AWS::EC2::Route",
+           "Properties" : {
+              "RouteTableId" : { "Ref" : "AndysPublicRouteTable" },
+              "DestinationCidrBlock" : "0.0.0.0/0",
+              "GatewayId" : { "Ref" : "AndysIGW" }
+           }
+        },
+      "PrivateGatewayRouteTable" :{
+        "Type" : "AWS::EC2::RouteTable",
+          "Properties" : {
+            "VpcId" : { "Ref" : "AndysVPC" },
+            "Tags" : [
+              {
+                "Key": "Name",
+                "Value" : "PrivateGatewayRoute"
+              }
+            ]
+          },
+        "DependsOn" : [ "AndysVPC" ]
+  
+  
+      },
+      "PrivateRoute" : {
+           "Type" : "AWS::EC2::Route",
+           "Properties" : {
+              "RouteTableId" : { "Ref" : "PrivateGatewayRouteTable" },
+              "DestinationCidrBlock" : "0.0.0.0/0",
+              "NatGatewayId" : { "Ref" : "NAT" }
+           }
+        },
+      "NAT" : {
+        "Type" : "AWS::EC2::NatGateway",
+        "Properties" : {
+          "AllocationId" : { "Fn::GetAtt" : ["NATEIP", "AllocationId"]},
+          "SubnetId" : { "Ref" : "public1"},
+          "Tags" : [
+            {
+              "Key": "Name",
+              "Value" : "MyNATGateway"
+            }
+        ]
+        }
+      },
+      "NATEIP" : {
+        "Type" : "AWS::EC2::EIP",
+        "Properties" : {
+          "Domain" : "vpc"
+        }
+      },
+      "AndysIGW" : {
+           "Type" : "AWS::EC2::InternetGateway",
+           "Properties" : {
+              "Tags" : [ {"Key" : "Name", "Value" : "AndysIGW"}]
+           }
+      },
+      "AttachGateway" :{
+        "Type" : "AWS::EC2::VPCGatewayAttachment",
+        "Properties" : {
+          "VpcId" : {"Ref" : "AndysVPC" },
+          "InternetGatewayId" : { "Ref" : "AndysIGW" }
+        }
+      },
+      "public1assocation" : {
+           "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+           "Properties" : {
+              "SubnetId" : { "Ref" : "public1" },
+              "RouteTableId" : { "Ref" : "AndysPublicRouteTable" }
+           }
+        },
+      "public2assocation" : {
+           "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+           "Properties" : {
+              "SubnetId" : { "Ref" : "public2" },
+              "RouteTableId" : { "Ref" : "AndysPublicRouteTable" }
+           }
+        },
+      "public3assocation" : {
+           "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+           "Properties" : {
+              "SubnetId" : { "Ref" : "public3" },
+              "RouteTableId" : { "Ref" : "AndysPublicRouteTable" }
+           }
+        },
+      "private1assocation" : {
+           "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+           "Properties" : {
+              "SubnetId" : { "Ref" : "private1" },
+              "RouteTableId" : { "Ref" : "PrivateGatewayRouteTable" }
+           }
+        },
+      "private2assocation" : {
+           "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+           "Properties" : {
+              "SubnetId" : { "Ref" : "private2" },
+              "RouteTableId" : { "Ref" : "PrivateGatewayRouteTable" }
+           }
+        },
+      "private3assocation" : {
+           "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+           "Properties" : {
+              "SubnetId" : { "Ref" : "private3" },
+              "RouteTableId" : { "Ref" : "PrivateGatewayRouteTable" }
+           }
+        },
+      "public1":{
+         "Type" : "AWS::EC2::Subnet",
+         "Properties" : {
+           "VpcId" : { "Ref" : "AndysVPC" },
+           "CidrBlock" : "10.0.0.0/24",
+           "AvailabilityZone" : "us-east-2a",
+           "MapPublicIpOnLaunch" : "True",
+           "Tags" : [
+             {
+               "Key":"Name",
+               "Value":"us-east-2a-public"
+             }
+           ]
+         },
+        "DependsOn" : [ "AndysPublicRouteTable", "AndysVPC" ]
+      },
+      "public2":{
+         "Type" : "AWS::EC2::Subnet",
+         "Properties" : {
+           "VpcId" : { "Ref" : "AndysVPC" },
+           "CidrBlock" : "10.0.1.0/24",
+           "AvailabilityZone" : "us-east-2b",
+           "MapPublicIpOnLaunch" : "True",
+           "Tags" : [
+             {
+               "Key":"Name",
+               "Value":"us-east-2b-public"
+             }
+           ]
+         },
+        "DependsOn" : [ "AndysPublicRouteTable", "AndysVPC" ]
+      },
+      "public3":{
+         "Type" : "AWS::EC2::Subnet",
+         "Properties" : {
+           "VpcId" : { "Ref" : "AndysVPC" },
+           "CidrBlock" : "10.0.2.0/24",
+           "AvailabilityZone" : "us-east-2c",
+           "MapPublicIpOnLaunch" : "True",
+           "Tags" : [
+             {
+               "Key":"Name",
+               "Value":"us-east-2c-public"
+             }
+           ]
+         },
+        "DependsOn" : [ "AndysPublicRouteTable", "AndysVPC" ]
+      },
+      "private1":{
+         "Type" : "AWS::EC2::Subnet",
+         "Properties" : {
+           "VpcId" : { "Ref" : "AndysVPC" },
+           "CidrBlock" : "10.0.4.0/24",
+           "AvailabilityZone" : "us-east-2a",
+           "MapPublicIpOnLaunch" : "False",
+           "Tags" : [
+             {
+               "Key":"Name",
+               "Value":"us-east-2a-private"
+             }
+           ]
+         }
+      },
+      "private2":{
+         "Type" : "AWS::EC2::Subnet",
+         "Properties" : {
+           "VpcId" : { "Ref" : "AndysVPC" },
+           "CidrBlock" : "10.0.5.0/24",
+           "AvailabilityZone" : "us-east-2b",
+           "MapPublicIpOnLaunch" : "False",
+           "Tags" : [
+             {
+               "Key":"Name",
+               "Value":"us-east-2b-private"
+             }
+           ]
+         }
+      },
+      "private3":{
+         "Type" : "AWS::EC2::Subnet",
+         "Properties" : {
+           "VpcId" : { "Ref" : "AndysVPC" },
+           "CidrBlock" : "10.0.6.0/24",
+           "AvailabilityZone" : "us-east-2c",
+           "MapPublicIpOnLaunch" : "False",
+           "Tags" : [
+             {
+               "Key":"Name",
+               "Value":"us-east-2c-private"
+             }
+           ]
+         }
+      }
+    }
+  }

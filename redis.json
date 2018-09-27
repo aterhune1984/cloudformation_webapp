@@ -1,0 +1,114 @@
+{
+"AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "",
+    "Metadata": {
+
+    },
+    "Parameters": {
+        "InstanceTypeParameter" : {
+            "Type" : "String",
+            "Default" : "t2.nano",
+            "AllowedValues" : ["t2.nano", "t2.micro", "m1.small", "m1.large"],
+            "Description" : "Enter t2.nano, t2.micro, m1.small, or m1.large. Default is t2.nano"
+          },
+        "VPCStack": {
+          "Type": "String",
+          "Default": "vpc",
+          "Description": "Stack where VPC is created that exports VPC values"
+        }
+    },
+    "Mappings": {
+        "RegionMap" : {
+            "us-east-2" : { "64" : "ami-0b59bfac6be064b78" }
+            }
+    },
+    "Conditions": {
+
+    },
+    "Resources": {
+        
+        "REDISlaunchConfig": {
+            "Type" : "AWS::AutoScaling::LaunchConfiguration",
+            "Properties" : {
+                "ImageId" : { "Fn::FindInMap" : [ "RegionMap", { "Ref" : "AWS::Region" }, "64"]},
+                "InstanceType" : {"Ref": "InstanceTypeParameter"},
+                "KeyName" : "osx",
+                "SecurityGroups" : [{ "Ref" : "REDISSecurityGroup" }],
+                "UserData" : {
+                    "Fn::Base64": 
+                        {   "Fn::Join": [
+                                "",
+                                [
+                                    "#!/bin/bash\n",
+                                    "echo 'Hello'\n",
+                                    "yum install -y gcc\n",
+                                    "wget http://download.redis.io/redis-stable.tar.gz\n",
+                                    "tar xvzf redis-stable.tar.gz\n",
+                                    "cd redis-stable\n",
+                                    "cd deps\n",
+                                    "make hiredis jemalloc linenoise lua\n",
+                                    "cd ..\n",
+                                    "make\n",
+                                    "make install\n",
+                                    "sed -i '69d' /redis-stable/redis.conf\n",
+                                    "echo \"requirepass foobared\" >> /redis-stable/redis.conf\n",
+                                    "/usr/local/bin/redis-server /redis-stable/redis.conf\n"
+                                ]
+                            
+                            ]                 
+                        }
+                }
+            }
+        },
+        
+        "REDISScalingGroup" : {
+            "Type" : "AWS::AutoScaling::AutoScalingGroup",
+            "Properties" : {
+                "VPCZoneIdentifier" : [
+                    { "Fn::ImportValue" : {"Fn::Sub": "${VPCStack}-private1" } },
+                    { "Fn::ImportValue" : {"Fn::Sub": "${VPCStack}-private2" } },
+                    { "Fn::ImportValue" : {"Fn::Sub": "${VPCStack}-private3" } }
+                  ],
+                "LaunchConfigurationName" : {"Ref": "REDISlaunchConfig"},
+                "MaxSize" : "1",
+                "MinSize" : "1",
+                "Tags" : [ {"Key" : "Name",
+                            "Value" : "Redis",
+                            "PropagateAtLaunch" : "True"} 
+                        ]
+            }
+        },
+        
+        
+        "REDISSecurityGroup" : {
+          "Type" : "AWS::EC2::SecurityGroup",
+          "Properties" : {
+            "GroupDescription":"nothing",
+            "SecurityGroupIngress" : [ 
+              {
+                  "IpProtocol" : "tcp",
+                  "FromPort": "6379",
+                  "ToPort": "6379",
+                  "CidrIp": "10.0.0.0/16"
+              },
+              {
+                "IpProtocol" : "tcp",
+                "FromPort": "22",
+                "ToPort": "22",
+                "CidrIp": "10.0.0.0/16"
+              }
+            ],
+            "VpcId" : { "Fn::ImportValue" : "VPCID" },
+            "Tags" :  [
+                {
+                    "Key":"Name",
+                    "Value":"RedisSecurityGroup"
+                }
+            ]
+          }
+        }
+        
+        
+
+    }
+}
